@@ -4,26 +4,53 @@
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Excel Table Viewer</title>
+  <title>GradeGuide</title>
   <!-- Include PapaParse for CSV parsing -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 20px;
+      margin: 10px;
+      background: #f9fafb;
+    }
+    #input-form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 20px;
+      margin-bottom: 20px;
+    }
+    #input-form label {
+      flex: 1 1 140px;
+      min-width: 120px;
+      font-size: 1rem;
+      margin-bottom: 8px;
+    }
+    #input-form input[type="number"] {
+      width: 60px;
+      padding: 4px 6px;
+      font-size: 1rem;
+      border-radius: 4px;
+      border: 1px solid #ccc;
     }
     table {
       border-collapse: collapse;
       width: 100%;
       margin-top: 20px;
+      background: #fff;
+      font-size: 0.98rem;
+      min-width: 600px;
     }
     th, td {
       border: 1px solid #ccc;
-      padding: 8px;
+      padding: 8px 6px;
       text-align: left;
+      word-break: break-word;
     }
     th {
       background-color: #f4f4f4;
+      position: sticky;
+      top: 0;
+      z-index: 2;
     }
     tbody tr:nth-child(even) {
       background-color: #d1d5db;
@@ -40,13 +67,64 @@
     }
     #csv-table-container {
       overflow-x: auto;
+      width: 100%;
+      max-width: 100vw;
+    }
+    @media (max-width: 900px) {
+      table {
+        font-size: 0.92rem;
+        min-width: 500px;
+      }
+      #input-form label {
+        flex: 1 1 100px;
+        min-width: 90px;
+        font-size: 0.97rem;
+      }
+    }
+    @media (max-width: 600px) {
+      body {
+        margin: 2px;
+      }
+      #input-form {
+        gap: 6px 8px;
+      }
+      #input-form label {
+        flex: 1 1 80px;
+        min-width: 70px;
+        font-size: 0.93rem;
+      }
+      table {
+        font-size: 0.85rem;
+        min-width: 400px;
+      }
+      th, td {
+        padding: 5px 3px;
+      }
+    }
+    @media (max-width: 430px) {
+      #input-form label {
+        flex: 1 1 60px;
+        min-width: 50px;
+        font-size: 0.85rem;
+      }
+      table {
+        font-size: 0.78rem;
+        min-width: 320px;
+      }
     }
   </style>
 </head>
 <body>
   <h1>Excel Table Viewer</h1>
-  <form id="input-form" style="margin-bottom:20px;"></form>
-  <label style="margin-bottom:10px;display:inline-block"><input type="checkbox" id="show-favorites"> Show only favorites</label>
+  <div class="input-form-container" style="margin-bottom: 10px;">
+    <div id="input-box" style="background:#f3f4f6; border:1.5px solid #cbd5e1; border-radius:10px; box-shadow:0 2px 8px #0001; padding:14px 12px 8px 12px; max-width:700px; margin-left:0; margin-right:auto;">
+      <button id="toggle-inputs-btn" type="button" style="margin-bottom: 8px; font-size:0.95em; padding:2px 10px;">Hide input fields</button>
+      <form id="input-form" style="display:block;"></form>
+    </div>
+  </div>
+  <div class="favorites-toggle-container">
+    <label><input type="checkbox" id="show-favorites"> Show only favorites</label>
+  </div>
   <div id="csv-table-container">
     <table id="excel-table"></table>
   </div>
@@ -80,43 +158,104 @@
       'Chemistry': 'Химия',
       'Geo': 'География',
       'History': 'История',
-      'Technology': 'ТП'
+    'Technology': 'ТП'
     };
-
-    // Render input fields and attach dynamic update
+// (Stray line removed)
+    // Render input fields in 4 per row, smaller, with hide/show option
     let lastCsvData = null;
     function renderInputFields() {
       form.innerHTML = '';
-      // Load cached values if present
       let cached = {};
       try {
         cached = JSON.parse(localStorage.getItem('inputFieldsCache') || '{}');
       } catch {}
-      inputFields.forEach(field => {
+      // First 4 fields in a row
+      let rowDiv = document.createElement('div');
+      rowDiv.style.display = 'flex';
+      rowDiv.style.gap = '0px';
+      rowDiv.style.marginBottom = '4px';
+      rowDiv.style.alignItems = 'center';
+      for (let idx = 0; idx < 4; idx++) {
+        const field = inputFields[idx];
         const label = document.createElement('label');
-        label.textContent = (inputFieldRenameMap[field] || field) + ': ';
-        label.style.marginRight = '8px';
+        label.textContent = (inputFieldRenameMap[field] || field) + ':';
+        label.style.display = 'flex';
+        label.style.alignItems = 'center';
+        label.style.justifyContent = 'flex-start';
+        label.style.marginRight = '0px';
+        label.style.fontSize = '0.93em';
+        label.style.minWidth = '120px';
+        label.style.maxWidth = '180px';
+        label.style.flex = '0 0 150px';
         const input = document.createElement('input');
         input.type = 'number';
         input.name = field;
         input.step = '1';
         input.required = false;
-        input.style.width = '60px';
-        input.style.marginRight = '16px';
+        input.style.width = '48px';
+        input.style.fontSize = '0.93em';
+        input.style.padding = '2px 3px';
+        input.style.marginLeft = '4px';
+        input.style.marginRight = '12px';
         if (cached[field] !== undefined) input.value = cached[field];
         input.oninput = function() {
-          // Only allow integers
           this.value = this.value.replace(/[^\d-]/g, '');
-          // Save to cache
+          cached[field] = this.value;
+          localStorage.setItem('inputFieldsCache', JSON.stringify(cached));
+          if (lastCsvData) renderTable(lastCsvData);
+        };
+        label.appendChild(input);
+        rowDiv.appendChild(label);
+      }
+      form.appendChild(rowDiv);
+      // Rest as a vertical list
+      for (let idx = 4; idx < inputFields.length; idx++) {
+        const field = inputFields[idx];
+        const label = document.createElement('label');
+        label.textContent = (inputFieldRenameMap[field] || field) + ':';
+        label.style.display = 'flex';
+        label.style.alignItems = 'center';
+        label.style.justifyContent = 'flex-start';
+        label.style.marginRight = '0px';
+        label.style.fontSize = '0.93em';
+        label.style.minWidth = '120px';
+        label.style.maxWidth = '180px';
+        label.style.flex = '0 0 150px';
+        label.style.marginBottom = '4px';
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.name = field;
+        input.step = '1';
+        input.required = false;
+        input.style.width = '48px';
+        input.style.fontSize = '0.93em';
+        input.style.padding = '2px 3px';
+        input.style.marginLeft = '4px';
+        input.style.marginRight = '12px';
+        if (cached[field] !== undefined) input.value = cached[field];
+        input.oninput = function() {
+          this.value = this.value.replace(/[^\d-]/g, '');
           cached[field] = this.value;
           localStorage.setItem('inputFieldsCache', JSON.stringify(cached));
           if (lastCsvData) renderTable(lastCsvData);
         };
         label.appendChild(input);
         form.appendChild(label);
-      });
+      }
     }
     renderInputFields();
+
+    // Hide/show input fields logic
+    const toggleBtn = document.getElementById('toggle-inputs-btn');
+    toggleBtn.onclick = function() {
+      if (form.style.display === 'none') {
+        form.style.display = 'block';
+        toggleBtn.textContent = 'Hide input fields';
+      } else {
+        form.style.display = 'none';
+        toggleBtn.textContent = 'Show input fields';
+      }
+    };
 
     // Auto-load schoolsData.csv via fetch, try both comma and semicolon delimiters
     fetch('schoolsData.csv')
@@ -216,13 +355,20 @@
       const visibleCols = data[0].map((h, i) => i).filter(i => i !== formulaColIdx);
       // We'll add Favorites as the first column
 
-      // Render header
+      // Filtering state
+      let filters = JSON.parse(localStorage.getItem('tableFilters') || '{}');
+
+      // Render header (with filter row)
       const headerEl = document.createElement('thead');
       const headerRow = document.createElement('tr');
+      const filterRow = document.createElement('tr');
       // Favorites column header
       const favTh = document.createElement('th');
       favTh.textContent = '★';
       headerRow.appendChild(favTh);
+      const favFilter = document.createElement('th');
+      favFilter.innerHTML = '';
+      filterRow.appendChild(favFilter);
       // Map for renaming columns in the view
       const colRenameMap = {
         'BELNVO': 'БЕЛ НВО',
@@ -246,9 +392,7 @@
       const artIdx = data[0].findIndex(h => h === 'Art');
       const musicIdx = data[0].findIndex(h => h === 'Music');
       if (artIdx !== -1 && musicIdx !== -1) {
-        // Remove Art and Music from their current positions
         reorderedCols = reorderedCols.filter(i => i !== artIdx && i !== musicIdx);
-        // Add Music before Art, and Art last
         reorderedCols.push(musicIdx);
         reorderedCols.push(artIdx);
       } else if (artIdx !== -1) {
@@ -256,7 +400,7 @@
         reorderedCols.push(artIdx);
       }
 
-      // Render headers with renaming and reordering
+      // Render headers and filter inputs
       reorderedCols.forEach((colIdx) => {
         const th = document.createElement('th');
         let headerName = data[0][colIdx];
@@ -275,13 +419,67 @@
           window._tableSortDir = sortDir;
           renderTable(lastCsvData);
         };
-        // Add sort indicator
         if (sortCol === colIdx) {
           th.textContent += sortDir === 1 ? ' ▲' : ' ▼';
         }
         headerRow.appendChild(th);
+
+        // Filter input (text for most, select for columns with <10 unique values)
+        const filterCell = document.createElement('th');
+        let uniqueVals = Array.from(new Set(data.slice(1).map(row => row[colIdx]).filter(v => v !== undefined && v !== '')));
+        if (uniqueVals.length > 1 && uniqueVals.length <= 10) {
+          // Use select
+          const sel = document.createElement('select');
+          sel.style.width = '98%';
+          sel.style.fontSize = '0.97em';
+          sel.innerHTML = '<option value="">-- Всички --</option>' + uniqueVals.map(v => `<option value="${v}">${v}</option>`).join('');
+          sel.value = filters[colIdx] || '';
+          sel.onchange = function() {
+            filters[colIdx] = this.value;
+            localStorage.setItem('tableFilters', JSON.stringify(filters));
+            renderTable(lastCsvData);
+          };
+          filterCell.appendChild(sel);
+        } else {
+          // Use text input
+          const inp = document.createElement('input');
+          inp.type = 'text';
+          inp.placeholder = 'Филтър';
+          inp.style.width = '94%';
+          inp.style.fontSize = '0.97em';
+          inp.value = filters[colIdx] || '';
+          // Assign a unique id for each filter input
+          const filterInputId = `filter-input-${colIdx}`;
+          inp.id = filterInputId;
+          let lastValue = inp.value;
+          let lastCaret = inp.selectionStart;
+          inp.addEventListener('input', function(e) {
+            filters[colIdx] = this.value;
+            localStorage.setItem('tableFilters', JSON.stringify(filters));
+            lastValue = this.value;
+            lastCaret = this.selectionStart;
+            // Debounce rendering to avoid race conditions when typing fast
+            if (window._filterInputTimeout) clearTimeout(window._filterInputTimeout);
+            window._filterInputTimeout = setTimeout(() => {
+              renderTable(lastCsvData);
+              // Restore focus and caret
+              const newInp = document.getElementById(filterInputId);
+              if (newInp) {
+                newInp.focus();
+                // If value changed, set caret at end, else restore
+                if (newInp.value === lastValue) {
+                  newInp.setSelectionRange(lastCaret, lastCaret);
+                } else {
+                  newInp.setSelectionRange(newInp.value.length, newInp.value.length);
+                }
+              }
+            }, 80); // 80ms debounce
+          });
+          filterCell.appendChild(inp);
+        }
+        filterRow.appendChild(filterCell);
       });
-      // Add Score and Probability headers with sorting
+      // Score and Probability headers
       const evalTh = document.createElement('th');
       evalTh.textContent = 'Score';
       evalTh.style.cursor = 'pointer';
@@ -300,6 +498,9 @@
         evalTh.textContent += sortDir === 1 ? ' ▲' : ' ▼';
       }
       headerRow.appendChild(evalTh);
+      const evalFilter = document.createElement('th');
+      evalFilter.innerHTML = '';
+      filterRow.appendChild(evalFilter);
       const probTh = document.createElement('th');
       probTh.textContent = 'Probability';
       probTh.style.cursor = 'pointer';
@@ -318,7 +519,11 @@
         probTh.textContent += sortDir === 1 ? ' ▲' : ' ▼';
       }
       headerRow.appendChild(probTh);
+      const probFilter = document.createElement('th');
+      probFilter.innerHTML = '';
+      filterRow.appendChild(probFilter);
       headerEl.appendChild(headerRow);
+      headerEl.appendChild(filterRow);
       table.appendChild(headerEl);
 
       // Sort if needed
@@ -381,6 +586,16 @@
         });
       }
 
+      // Filtering logic
+      const passesFilters = (row) => {
+        for (const [colIdx, val] of Object.entries(filters)) {
+          if (!val) continue;
+          const cell = (row[colIdx] || '').toString().toLowerCase();
+          if (val && !cell.includes(val.toString().toLowerCase())) return false;
+        }
+        return true;
+      };
+
       // Render body
       const tbody = document.createElement('tbody');
       dataRows.forEach((row, rowIdx) => {
@@ -388,6 +603,8 @@
         const rowKey = visibleCols.map(i => row[i]).join('||');
         // If show only favorites is checked, skip non-favorites
         if (showFavoritesCheckbox.checked && !favoritesSet.has(rowKey)) return;
+        // If doesn't pass filters, skip
+        if (!passesFilters(row)) return;
         const rowEl = document.createElement('tr');
         // Favorites cell
         const favTd = document.createElement('td');
