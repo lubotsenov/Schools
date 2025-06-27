@@ -1,0 +1,7 @@
+# Ignore OS and editor files
+.DS_Store
+Thumbs.db
+*.log
+
+# Ignore VS Code settings (optional)
+.vscode/
